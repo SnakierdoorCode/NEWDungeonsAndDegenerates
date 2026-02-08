@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en-us">
+  <head>
+    <meta charset="utf-8">
+    <title>Dungeons & Degenerates | Damien Port</title>
+    <style>
+      body { margin: 0; background: #0d0d0d; color: #ff4d4d; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; font-family: sans-serif; overflow: hidden; }
+      #game-wrapper { width: 960px; height: 540px; border: 2px solid #5b3943; position: relative; background: #000; border-radius: 8px; box-shadow: 0 0 50px rgba(255, 77, 77, 0.2); }
+      #canvas { width: 100%; height: 100%; display: block; }
+      #status { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: center; align-items: center; background: #000; border-radius: 6px; z-index: 10; }
+      progress { width: 50%; accent-color: #ff4d4d; height: 12px; margin: 15px 0; border: 1px solid #5b3943; border-radius: 6px; }
+      button { padding: 15px 35px; background: #ff4d4d; color: white; border: none; cursor: pointer; font-weight: bold; border-radius: 5px; text-transform: uppercase; letter-spacing: 1px; transition: 0.2s; }
+      button:disabled { background: #333; cursor: not-allowed; opacity: 0.5; }
+      button:hover:not(:disabled) { background: #fff; color: #ff4d4d; transform: scale(1.05); }
+      #msg { font-size: 1.2rem; margin-bottom: 5px; text-shadow: 0 0 10px rgba(255, 77, 77, 0.5); }
+    </style>
+    <script src="https://raw.githack.com/SnakierdoorCode/NEWDungeonsAndDegenerates/main/index.js"></script>
+  </head>
+  <body>
+
+    <div id="game-wrapper">
+      <canvas id="canvas"></canvas>
+      <div id="status">
+        <h2 id="msg">INITIALIZING...</h2>
+        <progress id="bar" value="0" max="100" style="display:none;"></progress>
+        <button id="start-btn" disabled>PLEASE WAIT...</button>
+      </div>
+    </div>
+
+    <script>
+      const msg = document.getElementById('msg');
+      const bar = document.getElementById('bar');
+      const btn = document.getElementById('start-btn');
+
+      // Check if the Engine class is loaded every 500ms
+      const checkEngine = setInterval(() => {
+        if (typeof Engine !== 'undefined') {
+          clearInterval(checkEngine);
+          btn.disabled = false;
+          btn.innerText = "BREACH THE DUNGEON";
+          msg.innerText = "DUNGEON GATE OPEN";
+          console.log("✅ Engine class detected.");
+        }
+      }, 500);
+      
+      const cb = "?t=" + new Date().getTime();
+      const PCK1 = "https://raw.githubusercontent.com/SnakierdoorCode/NEWDungeonsAndDegenerates/main/data.pck" + cb;
+      const PCK2 = "https://raw.githubusercontent.com/SnakierdoorCode/NEWDungeonsAndDegenerates/main/data2.pck" + cb;
+      const WASM_URL = "https://raw.githack.com/SnakierdoorCode/NEWDungeonsAndDegenerates/main/index.wasm";
+      const EXEC_URL = "https://raw.githack.com/SnakierdoorCode/NEWDungeonsAndDegenerates/main/index";
+
+      btn.onclick = async () => {
+        btn.style.display = 'none';
+        bar.style.display = 'block';
+        
+        try {
+          msg.innerText = "GATHERING DATA 1/2...";
+          const r1 = await fetch(PCK1);
+          if (!r1.ok) throw new Error("PCK 1 missing");
+          const p1 = await r1.arrayBuffer();
+          bar.value = 40;
+
+          msg.innerText = "GATHERING DATA 2/2...";
+          const r2 = await fetch(PCK2);
+          if (!r2.ok) throw new Error("PCK 2 missing");
+          const p2 = await r2.arrayBuffer();
+          bar.value = 80;
+
+          msg.innerText = "REFORGING...";
+          const combined = new Uint8Array(p1.byteLength + p2.byteLength);
+          combined.set(new Uint8Array(p1), 0);
+          combined.set(new Uint8Array(p2), p1.byteLength);
+
+          const engine = new Engine({
+              "args": ["--main-pack", "index.pck"],
+              "canvasResizePolicy": 2,
+              "executable": EXEC_URL,
+              "fileSizes": {"index.wasm": 43699190},
+              "pck": URL.createObjectURL(new Blob([new Uint8Array([0])])) 
+          });
+
+          msg.innerText = "IGNITING ENGINE...";
+          await engine.preloadFile(combined.buffer, "index.pck");
+
+          engine.startGame().then(() => {
+            document.getElementById('status').style.display = 'none';
+          });
+
+        } catch (e) {
+          console.error(e);
+          msg.innerText = "ERROR: " + e.message;
+        }
+      };
+    </script>
+  </body>
+</html>
